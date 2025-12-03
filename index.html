@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Texto para los reportes en plataforma</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .input-field {
+            @apply p-3 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500;
+        }
+        .btn-primary {
+            @apply bg-blue-600 text-white hover:bg-blue-700 transition duration-150 ease-in-out;
+        }
+        .btn-danger {
+            @apply bg-red-500 text-white hover:bg-red-600 transition duration-150 ease-in-out;
+        }
+        .estado-card {
+            @apply p-4 rounded-lg shadow-inner;
+        }
+        .estado-falla {
+            @apply border-l-4 border-red-500 bg-red-50;
+        }
+        .estado-normalidad {
+            @apply border-l-4 border-green-500 bg-green-50;
+        }
+        .estado-intermitencia {
+            @apply border-l-4 border-yellow-500 bg-yellow-50;
+        }
+
+        .highlight {
+            background-color: #ffeb3b; 
+            font-weight: bold;
+            padding: 1px 3px;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen p-4 sm:p-8">
+    <div class="max-w-6xl mx-auto">
+        <header class="text-center mb-10">
+            <h1 class="text-4xl font-extrabold text-blue-700 mb-2">Textos para los reportes en plataforma</h1>
+            <p class="text-xl text-gray-600">Reportes de fallas, normalidad e intermitencias</p>
+        </header>
+        
+        <section class="bg-white p-6 rounded-xl shadow-lg mb-8 border border-gray-200">
+            <h2 class="text-2xl font-bold mb-4 text-center text-gray-800">Buscar un Servicio Específico</h2>
+            <p class="text-center text-gray-500 mb-4">La búsqueda se realiza por el nombre del servicio o por cualquier palabra en sus reportes.</p>
+            <div class="flex flex-col sm:flex-row gap-4">
+                <input type="text" id="buscarServicio" placeholder="Escribe el nombre del servicio o una palabra clave (ej: Agrario, intermitencias, recargas)..." 
+                       class="input-field flex-grow" aria-label="Nombre del servicio o palabra clave a buscar">
+                <button onclick="buscar()" class="btn-primary px-6 py-3 rounded-lg font-semibold text-lg">Buscar</button>
+                <button onclick="limpiar()" class="btn-danger px-6 py-3 rounded-lg font-semibold text-lg">Limpiar</button>
+            </div>
+        </section>
+
+        <section id="resultado" class="hidden bg-white p-6 rounded-xl shadow-lg mb-8 border border-gray-200">
+            <h2 class="text-2xl font-bold mb-6 text-center text-gray-800">Estado Detallado: Novedad <span id="servicioEncontrado" class="text-blue-600"></span></h2>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div class="estado-card estado-falla">
+                    <h3 class="font-extrabold text-xl text-red-700 flex items-center mb-2">
+                        <span class="mr-2">🔴</span> Falla
+                    </h3>
+                    <p id="textoFalla" class="text-gray-700 whitespace-pre-wrap"></p>
+                </div>
+                <div class="estado-card estado-normalidad">
+                    <h3 class="font-extrabold text-xl text-green-700 flex items-center mb-2">
+                        <span class="mr-2">🟢</span> Normalidad
+                    </h3>
+                    <p id="textoNormalidad" class="text-gray-700 whitespace-pre-wrap"></p>
+                </div>
+                <div class="estado-card estado-intermitencia">
+                    <h3 class="font-extrabold text-xl text-yellow-700 flex items-center mb-2">
+                        <span class="mr-2">🟡</span> Intermitencia
+                    </h3>
+                    <p id="textoIntermitencia" class="text-gray-700 whitespace-pre-wrap"></p>
+                </div>
+            </div>
+        </section>
+        
+        <p id="noEncontrado" class="hidden text-center text-lg font-medium text-red-500 mb-6">
+            Servicio no encontrado. Por favor, verifica el nombre o palabra clave e intenta de nuevo.
+        </p>
+
+        <section class="bg-white p-6 rounded-xl shadow-lg border border-gray-200">
+            <h2 class="text-2xl font-bold mb-6 text-center text-gray-800">Listado Rápido de Servicios</h2>
+            <div class="overflow-x-auto rounded-lg border border-gray-200">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-100">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wider sticky left-0 bg-gray-100 z-10">Servicio</th>
+                            <th class="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">Falla (Resumen)</th>
+                            <th class="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">Normalidad (Resumen)</th>
+                            <th class="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">Intermitencia (Resumen)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tablaServicios" class="bg-white divide-y divide-gray-100"></tbody>
+                </table>
+            </div>
+        </section>
+    </div>
+
+    <script>
+
+        const dataServicios = [
+            { servicio: "Varios", falla: "Importante: Por medio del presente informamos que en el momento los siguientes productos que presentan fallas temporales: 1.''  2.'' 3.'' Nos encontramos validando la novedad con la entidad para solucionar lo antes posible.", normalidad: "Importante: Nos complace informarte que en este momento los siguientes productos estan operando con normalidad: 1. 2. Agradecemos sinceramente tu paciencia mientras trabajamos para brindarte el mejor servicio posible.", intermitencia: "Importante: Por medio del presente informamos que en el momento los siguientes productos presentan intermitencias 1.  2. Nos encontramos validando la novedad con la entidad para solucionar lo antes posible." },
+            { servicio: "soat", falla: "Importante: Por medio del presente informamos que en el momento Soat, presenta fallas temporales, nos encontramos validando la novedad con el proveedor para solucionar lo antes posible.", normalidad: "IMPORTANTE: Por medio del presente informamos que en el momento Soat, se encuentra funcionando con normalidad. Agradecemos su comprension…", intermitencia: "Importante: Por medio del presente informamos que en el momento Soat, presenta intermitencias, nos encontramos validando la novedad con el proveedor para solucionar lo antes posible." },
+            { servicio: "Claro", falla: "Importante: Por medio del presente informamos que en el momento el operador CLARO , presenta fallas temporales en PAQUETERIA Y RECARGAS nos encontramos validando la novedad con el operador para solucionar lo antes posible.", normalidad: "Importante: Por medio del presente informamos que en el momento el operador CLARO, presenta Normalidad en Paqueteria y Recargas, Agradecemos su comprension...", intermitencia: "Importante: Por medio del presente informamos que en el momento el operador CLARO , presenta intermitencias en PAQUETERIA Y RECARGAS nos encontramos validando la novedad con el operador para solucionar lo antes posible." },
+            { servicio: "Movistar", falla: "Importante: Por medio del presente informamos que en el momento el operador Movistar, presenta fallas temporales en PAQUETERIA Y RECARGAS nos encontramos validando la novedad con el operador para solucionar lo antes posible.", normalidad: "Importante: Por medio del presente informamos que en el momento el operador Movistar, presenta Normalidad en Paqueteria y Recargas, Agradecemos su comprension...", intermitencia: "Importante: Por medio del presente informamos que en el momento el operador Movistar, presenta intermitencias en PAQUETERIA Y RECARGAS nos encontramos validando la novedad con el operador para solucionar lo antes posible." },
+            { servicio: "Tigo", falla: "Importante: Por medio del presente informamos que en el momento el operador Tigo, presenta fallas temporales en PAQUETERIA Y RECARGAS nos encontramos validando la novedad con el operador para solucionar lo antes posible.", normalidad: "Importante: Por medio del presente informamos que en el momento el operador Tigo, presenta Normalidad en Paqueteria y Recargas, Agradecemos su comprension...", intermitencia: "Importante: Por medio del presente informamos que en el momento el operador Tigo , presenta intermitencias en PAQUETERIA Y RECARGAS nos encontramos validando la novedad con el operador para solucionar lo antes posible." },
+            { servicio: "Wom", falla: "Importante: Por medio del presente informamos que en el momento el operador Wom, presenta fallas temporales en PAQUETERIA Y RECARGAS nos encontramos validando la novedad con el operador para solucionar lo antes posible.", normalidad: "Importante: Por medio del presente informamos que en el momento el operador Wom, presenta Normalidad en Paqueteria y Recargas, Agradecemos su comprension...", intermitencia: "Importante: Por medio del presente informamos que en el momento el operador Wom , presenta intermitencias en PAQUETERIA Y RECARGAS nos encontramos validando la novedad con el operador para solucionar lo antes posible." },
+            { servicio: "Exito", falla: "Importante: Por medio del presente informamos que en el momento el operador Exito, presenta fallas temporales en PAQUETERIA Y RECARGAS nos encontramos validando la novedad con el operador para solucionar lo antes posible.", normalidad: "Importante: Por medio del presente informamos que en el momento el operador Exito, presenta Normalidad en Paqueteria y Recargas, Agradecemos su comprension...", intermitencia: "Importante: Por medio del presente informamos que en el momento el operador Exito, presenta intermitencias en PAQUETERIA Y RECARGAS nos encontramos validando la novedad con el operador para solucionar lo antes posible." },
+            { servicio: "Virgin", falla: "Importante: Por medio del presente informamos que en el momento el operador Virgin, presenta fallas temporales en PAQUETERIA Y RECARGAS nos encontramos validando la novedad con el operador para solucionar lo antes posible.", normalidad: "Importante: Por medio del presente informamos que en el momento el operador Virgin, presenta Normalidad en Paqueteria y Recargas, Agradecemos su comprension...", intermitencia: "Importante: Por medio del presente informamos que en el momento el operador Virgin , presenta intermitencias en PAQUETERIA Y RECARGAS nos encontramos validando la novedad con el operador para solucionar lo antes posible." },
+            { servicio: "Novedad lector de codigos por camara", falla: "Importante: En este momento presentamos una falla en el lector de codigos por camara en los dispositivos moviles. Mientras se restablece el servicio, puedes realizar los pagos de forma manual sin ningun inconveniente. Estamos trabajando para solucionarlo lo antes posible.", normalidad: "Importante: Informamos que el lector de codigos por camara en dispositivos moviles ya se encuentra funcionando con normalidad. Los pagos pueden realizarse nuevamente mediante el lector sin inconvenientes. Agradecemos su paciencia y comprension.", intermitencia: "Importante: En este momento presentamos una intermitencia en el lector de codigos por camara en los dispositivos moviles. Mientras se restablece el servicio, puedes realizar los pagos de forma manual sin ningun inconveniente. Estamos trabajando para solucionarlo lo antes posible." },
+            { servicio: "Directv", falla: "Importante: Por medio del presente informamos que en el momento el operador Directv , presenta fallas temporales en recargas , nos encontramos validando la novedad con el operador para solucionar lo antes posible.", normalidad: "Importante: Por medio del presente informamos que en el momento el operador Directv, presenta Normalidad en Recargas. Agradecemos su comprension…", intermitencia: "Importante: Por medio del presente informamos que en el momento el operador Directv , presenta intermitencias en recargas , nos encontramos validando la novedad con el operador para solucionar lo antes posible." },
+            { servicio: "Obligaciones Agrario", falla: "Importante: Por medio del presente informamos que en el momento Obligaciones Agrario presenta fallas temporales Nos encontramos validando la novedad con el banco para solucionar lo antes posible. Agradecemos tu comprension", normalidad: "Importante: Informamos que en el momento Obligaciones Agrario se encuentra funcionando con normalidad. Agradecemos su comprension…", intermitencia: "Importante: Por medio del presente informamos que en el momento Obligaciones Agrario presenta intermitencias Nos encontramos validando la novedad con el banco para solucionar lo antes posible. Agradecemos tu comprension" },
+            { servicio: "Recaudos Agrario", falla: "Importante: Por medio del presente informamos que en el momento Recaudos Agrario presenta fallas temporales Nos encontramos validando la novedad con el banco para solucionar lo antes posible. Agradecemos tu comprension", normalidad: "Importante: Informamos que en el momento Recaudos Agrario se encuentra funcionando con normalidad. Agradecemos su comprension…", intermitencia: "Importante: Por medio del presente informamos que en el momento Recaudos Agrario presenta intermitencias Nos encontramos validando la novedad con el banco para solucionar lo antes posible. Agradecemos tu comprension" },
+            { servicio: "Retiros Agrario", falla: "Importante: Por medio del presente informamos que en el momento Retiros Agrario presenta fallas temporales Nos encontramos validando la novedad con el banco para solucionar lo antes posible. Agradecemos tu comprension", normalidad: "Importante: Informamos que en el momento Retiros Agrario se encuentra funcionando con normalidad. Agradecemos su comprension…", intermitencia: "Importante: Por medio del presente informamos que en el momento Retiros Agrario presenta intermitencias Nos encontramos validando la novedad con el banco para solucionar lo antes posible. Agradecemos tu comprension" },
+            { servicio: "Depostos Agrario", falla: "Importante: Por medio del presente informamos que en el momento Depostos Agrario presenta fallas temporales Nos encontramos validando la novedad con el banco para solucionar lo antes posible. Agradecemos tu comprension", normalidad: "Importante: Informamos que en el momento Depostos Agrario se encuentra funcionando con normalidad. Agradecemos su comprension…", intermitencia: "Importante: Por medio del presente informamos que en el momento Depostos Agrario presenta intermitencias Nos encontramos validando la novedad con el banco para solucionar lo antes posible. Agradecemos tu comprension" },
+            { servicio: "Energia prepago Cens", falla: "Importante: Por medio del presente informamos que en el momento Energia prepago Cens presenta fallas temporales Nos encontramos validando la novedad con el proveedor para solucionar lo antes posible. Agradecemos tu comprension.", normalidad: "Importante: Informamos que en el momento Energia prepago Cens se encuentra funcionando con normalidad. Agradecemos su comprension…", intermitencia: "Importante: Por medio del presente informamos que en el momento Energia prepago Cens presenta intermitencias Nos encontramos validando la novedad con el proveedor para solucionar lo antes posible. Agradecemos tu comprension." },
+            { servicio: "Energia prepago ESSA", falla: "Importante: Por medio del presente informamos que en el momento Energia prepago ESSA presenta fallas temporales Nos encontramos validando la novedad con el proveedor para solucionar lo antes posible. Agradecemos tu comprension.", normalidad: "Importante: Informamos que en el momento Energia prepago ESSA se encuentra funcionando con normalidad. Agradecemos su comprension…", intermitencia: "Importante: Por medio del presente informamos que en el momento Energia prepago ESSA presenta intermitencias Nos encontramos validando la novedad con el proveedor para solucionar lo antes posible. Agradecemos tu comprension." },
+            { servicio: "Energia prepago EPM", falla: "Importante: Por medio del presente informamos que en el momento Energia prepago EPM presenta fallas temporales Nos encontramos validando la novedad con el proveedor para solucionar lo antes posible. Agradecemos tu comprension.", normalidad: "Importante: Informamos que en el momento Energia prepago EPM se encuentra funcionando con normalidad. Agradecemos su comprension…", intermitencia: "Importante: Por medio del presente informamos que en el momento Energia prepago EPM presenta intermitencias Nos encontramos validando la novedad con el proveedor para solucionar lo antes posible. Agradecemos tu comprension." },
+            { servicio: "Pin Directv", falla: "Importante: Por medio del presente informamos que en el momento Pin Directv presenta fallas temporales Nos encontramos validando la novedad con el proveedor para solucionar lo antes posible. Agradecemos tu comprension.", normalidad: "Importante: Informamos que en el momento Pin Directv se encuentra funcionando con normalidad. Agradecemos su comprension…", intermitencia: "Importante: Por medio del presente informamos que en el momento Pin Directv presenta intermitencias Nos encontramos validando la novedad con el proveedor para solucionar lo antes posible. Agradecemos tu comprension." },
+            { servicio: "Pines netflix", falla: "Importante: Por medio del presente informamos que en el momento Pines netflix presenta fallas temporales Nos encontramos validando la novedad con el proveedor para solucionar lo antes posible. Agradecemos tu comprension.", normalidad: "Importante: Informamos que en el momento Pines netflix se encuentra funcionando con normalidad. Agradecemos su comprension…", intermitencia: "Importante: Por medio del presente informamos que en el momento Pines netflix presenta intermitencias Nos encontramos validando la novedad con el proveedor para solucionar lo antes posible. Agradecemos tu comprension." },
+            { servicio: "yajuego", falla: "Importante: Por medio del presente informamos que en el momento yajuego presenta fallas temporales Nos encontramos validando la novedad con el proveedor para solucionar lo antes posible. Agradecemos tu comprension.", normalidad: "Importante: Informamos que en el momento yajuego se encuentra funcionando con normalidad. Agradecemos su comprension…", intermitencia: "Importante: Por medio del presente informamos que en el momento yajuego presenta intermitencias Nos encontramos validando la novedad con el proveedor para solucionar lo antes posible." },
+            { servicio: "wplay", falla: "Importante: Por medio del presente informamos que en el momento wplay presenta fallas temporales Nos encontramos validando la novedad con el proveedor para solucionar lo antes posible. Agradecemos tu comprension.", normalidad: "Importante: Informamos que en el momento wplay se encuentra funcionando con normalidad. Agradecemos su comprension…", intermitencia: "Importante: Por medio del presente informamos que en el momento wplay presenta intermitencias Nos encontramos validando la novedad con el proveedor para solucionar lo antes posible." },
+            { servicio: "Betplay Meta", falla: "Importante: Por medio del presente informamos que en el momento Betplay Meta presenta fallas temporales Nos encontramos validando la novedad con el proveedor para solucionar lo antes posible. Agradecemos tu comprension.", normalidad: "Importante: Informamos que en el momento Betplay Meta se encuentra funcionando con normalidad. Agradecemos su comprension…", intermitencia: "Importante: Por medio del presente informamos que en el momento Betplay Meta presenta intermitencias Nos encontramos validando la novedad con el proveedor para solucionar lo antes posible." },
+            { servicio: "Betplay Quindio", falla: "Importante: Por medio del presente informamos que en el momento Betplay Quindio presenta fallas temporales Nos encontramos validando la novedad con el proveedor para solucionar lo antes posible. Agradecemos tu comprension.", normalidad: "Importante: Informamos que en el momento Betplay Quindio se encuentra funcionando con normalidad. Agradecemos su comprension…", intermitencia: "Importante: Por medio del presente informamos que en el momento Betplay Quindio presenta intermitencias Nos encontramos validando la novedad con el proveedor para solucionar lo antes posible." },
+            { servicio: "Betplay Risaralda", falla: "Importante: Por medio del presente informamos que en el momento Betplay Risaralda presenta fallas temporales Nos encontramos validando la novedad con el proveedor para solucionar lo antes posible. Agradecemos tu comprension.", normalidad: "Importante: Informamos que en el momento Betplay Risaralda se encuentra funcionando con normalidad. Agradecemos su comprension…", intermitencia: "Importante: Por medio del presente informamos que en el momento Betplay Risaralda presenta intermitencias Nos encontramos validando la novedad con el proveedor para solucionar lo antes posible." },
+            { servicio: "Certificados de libertad y tradicion (SNR)", falla: "Importante: Por medio del presente informamos que en el momento Certificados de libertad y tradicion (SNR) presenta fallas temporales Nos encontramos validando la novedad con el proveedor para solucionar lo antes posible. Agradecemos tu comprension.", normalidad: "Importante: Informamos que en el momento Certificados de libertad y tradicion (SNR) se encuentra funcionando con normalidad. Agradecemos su comprension…", intermitencia: "Importante: Por medio del presente informamos que en el momento Certificados de libertad y tradicion (SNR) presenta intermitencias Nos encontramos validando la novedad con el proveedor para solucionar lo antes posible." },
+            { servicio: "Corresponsalia Caja Social", falla: "Importante: Por medio del presente informamos que en el momento Corresponsalia Caja Social presenta fallas temporales Nos encontramos validando la novedad con el banco para solucionar lo antes posible. Agradecemos tu comprension", normalidad: "Importante: Informamos que en el momento Corresponsalia Caja Social se encuentra funcionando con normalidad. Agradecemos su comprension…", intermitencia: "Importante: Por medio del presente informamos que en el momento Corresponsalia Caja Social presenta intermitencias Nos encontramos validando la novedad con el banco para solucionar lo antes posible. Agradecemos tu comprension" },
+            { servicio: "Obligaciones Caja Social", falla: "Importante: Por medio del presente informamos que en el momento Obligaciones Caja Social presenta fallas temporales Nos encontramos validando la novedad con el banco para solucionar lo antes posible. Agradecemos tu comprension", normalidad: "Importante: Informamos que en el momento Obligaciones Caja Social se encuentra funcionando con normalidad. Agradecemos su comprension…", intermitencia: "Importante: Por medio del presente informamos que en el momento Obligaciones Caja Social presenta intermitencias Nos encontramos validando la novedad con el banco para solucionar lo antes posible. Agradecemos tu comprension" },
+            { servicio: "Retiros Caja Social", falla: "Importante: Por medio del presente informamos que en el momento Retiros Caja Social presenta fallas temporales Nos encontramos validando la novedad con el banco para solucionar lo antes posible. Agradecemos tu comprension", normalidad: "Importante: Informamos que en el momento Retiros Caja Social se encuentra funcionando con normalidad. Agradecemos su comprension…", intermitencia: "Importante: Por medio del presente informamos que en el momento Retiros Caja Social presenta intermitencias Nos encontramos validando la novedad con el banco para solucionar lo antes posible. Agradecemos tu comprension" },
+            { servicio: "Depositos Caja Social", falla: "Importante: Por medio del presente informamos que en el momento Depositos Caja Social presenta fallas temporales Nos encontramos validando la novedad con el banco para solucionar lo antes posible. Agradecemos tu comprension", normalidad: "Importante: Informamos que en el momento Depositos Caja Social se encuentra funcionando con normalidad. Agradecemos su comprension…", intermitencia: "Importante: Por medio del presente informamos que en el momento Depositos Caja Social presenta intermitencias Nos encontramos validando la novedad con el banco para solucionar lo antes posible. Agradecemos tu comprension" },
+            { servicio: "Recaudos Aval", falla: "Importante: Por medio del presente informamos que en el momento Recaudos Aval presenta fallas temporales Nos encontramos validando la novedad con el banco para solucionar lo antes posible. Agradecemos tu comprension", normalidad: "Importante: Informamos que en el momento Recaudos Aval se encuentra funcionando con normalidad. Agradecemos su comprension…", intermitencia: "Importante: Por medio del presente informamos que en el momento Recaudos Aval presenta intermitencias Nos encontramos validando la novedad con el banco para solucionar lo antes posible. Agradecemos tu comprension" },
+            { servicio: "Obligaciones Aval", falla: "Importante: Por medio del presente informamos que en el momento Obligaciones Aval presenta fallas temporales Nos encontramos validando la novedad con el banco para solucionar lo antes posible. Agradecemos tu comprension", normalidad: "Importante: Informamos que en el momento Obligaciones Aval se encuentra funcionando con normalidad. Agradecemos su comprension…", intermitencia: "Importante: Por medio del presente informamos que en el momento Obligaciones Aval presenta intermitencias Nos encontramos validando la novedad con el banco para solucionar lo antes posible. Agradecemos tu comprension" },
+            { servicio: "Retiros Aval", falla: "Importante: Por medio del presente informamos que en el momento Retiros Aval presenta fallas temporales Nos encontramos validando la novedad con el banco para solucionar lo antes posible. Agradecemos tu comprension", normalidad: "Importante: Informamos que en el momento Retiros Aval se encuentra funcionando con normalidad. Agradecemos su comprension…", intermitencia: "Importante: Por medio del presente informamos que en el momento Retiros Aval presenta intermitencias Nos encontramos validando la novedad con el banco para solucionar lo antes posible. Agradecemos tu comprension" },
+            { servicio: "Depositos Aval", falla: "Importante: Por medio del presente informamos que en el momento Depositos Aval presenta fallas temporales Nos encontramos validando la novedad con el banco para solucionar lo antes posible. Agradecemos tu comprension", normalidad: "Importante: Informamos que en el momento Depositos Aval se encuentra funcionando con normalidad. Agradecemos su comprension…", intermitencia: "Importante: Por medio del presente informamos que en el momento Depositos Aval presenta intermitencias Nos encontramos validando la novedad con el banco para solucionar lo antes posible. Agradecemos tu comprension" },
+            { servicio: "Recaudos Davivienda", falla: "Importante: Por medio del presente informamos que en el momento Recaudos Davivienda presenta fallas temporales Nos encontramos validando la novedad con el banco para solucionar lo antes posible. Agradecemos tu comprension", normalidad: "Importante: Informamos que en el momento Recaudos Davivienda se encuentra funcionando con normalidad. Agradecemos su comprension…", intermitencia: "Importante: Por medio del presente informamos que en el momento Recaudos Davivienda presenta intermitencias Nos encontramos validando la novedad con el banco para solucionar lo antes posible. Agradecemos tu comprension" },
+            { servicio: "Obligaciones Davivienda", falla: "Importante: Por medio del presente informamos que en el momento Obligaciones Davivienda presenta fallas temporales Nos encontramos validando la novedad con el banco para solucionar lo antes posible. Agradecemos tu comprension", normalidad: "Importante: Informamos que en el momento Obligaciones Davivienda se encuentra funcionando con normalidad. Agradecemos su comprension…", intermitencia: "Importante: Por medio del presente informamos que en el momento Obligaciones Davivienda presenta intermitencias Nos encontramos validando la novedad con el banco para solucionar lo antes posible. Agradecemos tu comprension" },
+            { servicio: "Retiros Davivienda", falla: "Importante: Por medio del presente informamos que en el momento Retiros Davivienda presenta fallas temporales Nos encontramos validando la novedad con el banco para solucionar lo antes posible. Agradecemos tu comprension", normalidad: "Importante: Informamos que en el momento Retiros Davivienda se encuentra funcionando con normalidad. Agradecemos su comprension…", intermitencia: "Importante: Por medio del presente informamos que en el momento Retiros Davivienda presenta intermitencias Nos encontramos validando la novedad con el banco para solucionar lo antes posible. Agradecemos tu comprension" },
+            { servicio: "Depositos Davivienda", falla: "Importante: Por medio del presente informamos que en el momento Depositos Davivienda presenta fallas temporales Nos encontramos validando la novedad con el banco para solucionar lo antes posible. Agradecemos tu comprension", normalidad: "Importante: Informamos que en el momento Depositos Davivienda se encuentra funcionando con normalidad. Agradecemos su comprension…", intermitencia: "Importante: Por medio del presente informamos que en el momento Depositos Davivienda presenta intermitencias Nos encontramos validando la novedad con el banco para solucionar lo antes posible. Agradecemos tu comprension" },
+            { servicio: "Retiro Dale", falla: "Importante: Por medio del presente informamos que en el momento Retiro Dale presenta fallas temporales Nos encontramos validando la novedad con el banco para solucionar lo antes posible. Agradecemos tu comprension", normalidad: "Importante: Informamos que en el momento Retiro Dale se encuentra funcionando con normalidad. Agradecemos su comprension…", intermitencia: "Importante: Por medio del presente informamos que en el momento Retiro Dale presenta intermitencias Nos encontramos validando la novedad con el banco para solucionar lo antes posible. Agradecemos tu comprension" },
+            { servicio: "Lentitud en la plataforma", falla: "Importante: Por medio del presente informamos que en este momento se presenta novedad de visualizacion y lentitud en la plataforma ya nos encontramos trabajando para solucionarlo disculpa las molestias presentadas", normalidad: "IMPORTANTE: Informamos que en el momento la plataforma presente normalidad y esta funcionando con normalidad del servicio disculpe las molestias . Agradecemos su comprension…", intermitencia: "No Aplica" },
+            { servicio: "compras de saldo de bancolombia", falla: "Importante: Buen dia, las compras de saldo de bancolombia, (las compras realizadas con tarjeta de recaudo al conveio 58494) esta presentando intermitencia y demora para aplicarse, por favor recomendar a los clientes otros medios de recuado. Agradecemos tu comprension Agradecemos tu comprension", normalidad: "Importante: Nos complace informarte que el Banco Bancolombia ya se encuentra en estado normal y las operaciones se pueden realizar sin inconvenientes. Agradecemos sinceramente tu paciencia, puedes continuar con tus transacciones de manera habitual.", intermitencia: "No Aplica" },
+            { servicio: "Novedad QR", falla: "Importante: Mediante la presente se notifica una novedad con el servicio QR estatico e interoperable, estamos atentos a novedades por parte de la entidad, les estaremos informando una vez sea restablecido el servicio. Agradecemos tu comprension y paciencia mientras notifican normalidad.", normalidad: "Importante: Nos complace informarte que el QR ya se encuentra en estado normal y las operaciones se pueden realizar sin inconvenientes. Agradecemos sinceramente tu paciencia, puedes continuar con tus transacciones de manera habitual.", intermitencia: "No Aplica" },
+            { servicio: "Novedad Banco de Bogota", falla: "Importante: Buen dia, las compras de saldo de Banco de Bogota, esta presentando intermitencia y demora para aplicarse, por favor recomendar a los clientes otros medios de recuado. Agradecemos tu comprension Agradecemos tu comprension", normalidad: "Importante: Nos complace informarte que el Portal del Banco de Bogota ya se encuentra en estado normal y las operaciones se pueden realizar sin inconvenientes. Agradecemos sinceramente tu paciencia, puedes continuar con tus transacciones de manera habitual.", intermitencia: "No Aplica" }
+        ];
+
+
+        const MAX_RESUMEN_LENGTH = 150;
+        
+
+        const $buscarInput = document.getElementById('buscarServicio');
+        const $resultadoSection = document.getElementById('resultado');
+        const $tablaServiciosBody = document.getElementById('tablaServicios');
+        const $noEncontrado = document.getElementById('noEncontrado');
+        const $servicioEncontrado = document.getElementById('servicioEncontrado');
+
+      
+        function highlightText(texto, busqueda) {
+            if (!busqueda) return texto;
+            const regex = new RegExp('(' + busqueda.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&') + ')', 'gi');
+            return texto.replace(regex, '<span class="highlight">$1</span>');
+        }
+
+        
+        function buscar() {
+            const busqueda = $buscarInput.value.trim().toLowerCase();
+
+            $resultadoSection.classList.add('hidden');
+            $noEncontrado.classList.add('hidden');
+
+            if (!busqueda) {
+                alert("Por favor, ingresa el nombre de un servicio o una palabra clave para buscar.");
+                return;
+            }
+
+
+            const resultado = dataServicios.find(s => 
+                s.servicio.toLowerCase().includes(busqueda) ||
+                (s.falla && s.falla.toLowerCase().includes(busqueda)) ||
+                (s.normalidad && s.normalidad.toLowerCase().includes(busqueda)) ||
+                (s.intermitencia && s.intermitencia.toLowerCase().includes(busqueda))
+            );
+            
+            if (resultado) {
+
+                $servicioEncontrado.textContent = resultado.servicio;
+                
+                document.getElementById('textoFalla').innerHTML = highlightText(resultado.falla || 'No se especifica', busqueda);
+                document.getElementById('textoNormalidad').innerHTML = highlightText(resultado.normalidad || 'No se especifica', busqueda);
+                document.getElementById('textoIntermitencia').innerHTML = highlightText(resultado.intermitencia || 'No se especifica', busqueda);
+                
+        
+                $resultadoSection.classList.remove('hidden');
+                $buscarInput.focus(); 
+            } else {
+              
+                $noEncontrado.classList.remove('hidden');
+            }
+        }
+
+      
+        function limpiar() {
+            $buscarInput.value = '';
+            $resultadoSection.classList.add('hidden');
+            $noEncontrado.classList.add('hidden');
+            $buscarInput.focus();
+        }
+
+       
+        function crearResumen(texto) {
+            if (!texto || texto.toLowerCase() === 'no aplica') {
+                return 'N/A';
+            }
+            if (texto.length > MAX_RESUMEN_LENGTH) {
+              
+                return texto.substring(0, MAX_RESUMEN_LENGTH).trim() + '...';
+            }
+            return texto;
+        }
+
+        
+        function cargarTabla() {
+            $tablaServiciosBody.innerHTML = '';
+            
+            dataServicios.forEach(serv => {
+                const fila = document.createElement('tr');
+                fila.classList.add('hover:bg-gray-50');
+                
+                fila.innerHTML = `
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-blue-700 sticky left-0 bg-white">${serv.servicio}</td>
+                    <td class="px-6 py-4 text-sm text-red-600">${crearResumen(serv.falla)}</td>
+                    <td class="px-6 py-4 text-sm text-green-600">${crearResumen(serv.normalidad)}</td>
+                    <td class="px-6 py-4 text-sm text-yellow-600">${crearResumen(serv.intermitencia)}</td>
+                `;
+                $tablaServiciosBody.appendChild(fila);
+            });
+        }
+
+        
+        document.addEventListener('DOMContentLoaded', () => {
+            cargarTabla();
+            $buscarInput.focus(); 
+            
+           
+            $buscarInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    buscar();
+                }
+            });
+        });
+    </script>
+</body>
+</html>
