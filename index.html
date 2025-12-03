@@ -34,6 +34,14 @@
             padding: 1px 3px;
             border-radius: 3px;
         }
+        
+        .resultado-item {
+            @apply mb-8 pb-6 border-b border-gray-200 last:border-b-0 last:mb-0;
+        }
+        
+        .servicio-title {
+            @apply text-xl font-bold text-blue-700 mb-4 flex items-center;
+        }
     </style>
 </head>
 <body class="bg-gray-50 min-h-screen p-4 sm:p-8">
@@ -52,29 +60,16 @@
                 <button onclick="buscar()" class="btn-primary px-6 py-3 rounded-lg font-semibold text-lg">Buscar</button>
                 <button onclick="limpiar()" class="btn-danger px-6 py-3 rounded-lg font-semibold text-lg">Limpiar</button>
             </div>
+            <p class="text-center text-gray-500 text-sm mt-2">Mostrará todos los servicios que coincidan con la búsqueda</p>
         </section>
 
         <section id="resultado" class="hidden bg-white p-6 rounded-xl shadow-lg mb-8 border border-gray-200">
-            <h2 class="text-2xl font-bold mb-6 text-center text-gray-800">Estado Detallado: Novedad <span id="servicioEncontrado" class="text-blue-600"></span></h2>
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div class="estado-card estado-falla">
-                    <h3 class="font-extrabold text-xl text-red-700 flex items-center mb-2">
-                        <span class="mr-2">🔴</span> Falla
-                    </h3>
-                    <p id="textoFalla" class="text-gray-700 whitespace-pre-wrap"></p>
-                </div>
-                <div class="estado-card estado-normalidad">
-                    <h3 class="font-extrabold text-xl text-green-700 flex items-center mb-2">
-                        <span class="mr-2">🟢</span> Normalidad
-                    </h3>
-                    <p id="textoNormalidad" class="text-gray-700 whitespace-pre-wrap"></p>
-                </div>
-                <div class="estado-card estado-intermitencia">
-                    <h3 class="font-extrabold text-xl text-yellow-700 flex items-center mb-2">
-                        <span class="mr-2">🟡</span> Intermitencia
-                    </h3>
-                    <p id="textoIntermitencia" class="text-gray-700 whitespace-pre-wrap"></p>
-                </div>
+            <h2 class="text-2xl font-bold mb-6 text-center text-gray-800">
+                <span id="resultadosTitulo"></span>
+                <span id="contadorResultados" class="text-sm font-normal text-blue-600 ml-2"></span>
+            </h2>
+            <div id="resultadosContainer" class="space-y-8">
+                
             </div>
         </section>
         
@@ -101,8 +96,8 @@
     </div>
 
     <script>
-
         const dataServicios = [
+           
             { servicio: "Varios", falla: "Importante: Por medio del presente informamos que en el momento los siguientes productos que presentan fallas temporales: 1.''  2.'' 3.'' Nos encontramos validando la novedad con la entidad para solucionar lo antes posible.", normalidad: "Importante: Nos complace informarte que en este momento los siguientes productos estan operando con normalidad: 1. 2. Agradecemos sinceramente tu paciencia mientras trabajamos para brindarte el mejor servicio posible.", intermitencia: "Importante: Por medio del presente informamos que en el momento los siguientes productos presentan intermitencias 1.  2. Nos encontramos validando la novedad con la entidad para solucionar lo antes posible." },
             { servicio: "soat", falla: "Importante: Por medio del presente informamos que en el momento Soat, presenta fallas temporales, nos encontramos validando la novedad con el proveedor para solucionar lo antes posible.", normalidad: "IMPORTANTE: Por medio del presente informamos que en el momento Soat, se encuentra funcionando con normalidad. Agradecemos su comprension…", intermitencia: "Importante: Por medio del presente informamos que en el momento Soat, presenta intermitencias, nos encontramos validando la novedad con el proveedor para solucionar lo antes posible." },
             { servicio: "Claro", falla: "Importante: Por medio del presente informamos que en el momento el operador CLARO , presenta fallas temporales en PAQUETERIA Y RECARGAS nos encontramos validando la novedad con el operador para solucionar lo antes posible.", normalidad: "Importante: Por medio del presente informamos que en el momento el operador CLARO, presenta Normalidad en Paqueteria y Recargas, Agradecemos su comprension...", intermitencia: "Importante: Por medio del presente informamos que en el momento el operador CLARO , presenta intermitencias en PAQUETERIA Y RECARGAS nos encontramos validando la novedad con el operador para solucionar lo antes posible." },
@@ -148,81 +143,110 @@
             { servicio: "Novedad Banco de Bogota", falla: "Importante: Buen dia, las compras de saldo de Banco de Bogota, esta presentando intermitencia y demora para aplicarse, por favor recomendar a los clientes otros medios de recuado. Agradecemos tu comprension Agradecemos tu comprension", normalidad: "Importante: Nos complace informarte que el Portal del Banco de Bogota ya se encuentra en estado normal y las operaciones se pueden realizar sin inconvenientes. Agradecemos sinceramente tu paciencia, puedes continuar con tus transacciones de manera habitual.", intermitencia: "No Aplica" }
         ];
 
-
         const MAX_RESUMEN_LENGTH = 150;
         
-
         const $buscarInput = document.getElementById('buscarServicio');
         const $resultadoSection = document.getElementById('resultado');
+        const $resultadosContainer = document.getElementById('resultadosContainer');
+        const $resultadosTitulo = document.getElementById('resultadosTitulo');
+        const $contadorResultados = document.getElementById('contadorResultados');
         const $tablaServiciosBody = document.getElementById('tablaServicios');
         const $noEncontrado = document.getElementById('noEncontrado');
-        const $servicioEncontrado = document.getElementById('servicioEncontrado');
 
-      
         function highlightText(texto, busqueda) {
-            if (!busqueda) return texto;
+            if (!busqueda || !texto) return texto;
             const regex = new RegExp('(' + busqueda.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&') + ')', 'gi');
-            return texto.replace(regex, '<span class="highlight">$1</span>');
+            return texto.toString().replace(regex, '<span class="highlight">$1</span>');
         }
 
-        
         function buscar() {
             const busqueda = $buscarInput.value.trim().toLowerCase();
 
             $resultadoSection.classList.add('hidden');
             $noEncontrado.classList.add('hidden');
+            $resultadosContainer.innerHTML = '';
 
             if (!busqueda) {
                 alert("Por favor, ingresa el nombre de un servicio o una palabra clave para buscar.");
                 return;
             }
 
-
-            const resultado = dataServicios.find(s => 
+           
+            const resultados = dataServicios.filter(s => 
                 s.servicio.toLowerCase().includes(busqueda) ||
                 (s.falla && s.falla.toLowerCase().includes(busqueda)) ||
                 (s.normalidad && s.normalidad.toLowerCase().includes(busqueda)) ||
                 (s.intermitencia && s.intermitencia.toLowerCase().includes(busqueda))
             );
             
-            if (resultado) {
-
-                $servicioEncontrado.textContent = resultado.servicio;
+            if (resultados.length > 0) {
+               
+                $resultadosTitulo.textContent = 'Resultados de la búsqueda:';
+                $contadorResultados.textContent = `(${resultados.length} servicio${resultados.length !== 1 ? 's' : ''} encontrado${resultados.length !== 1 ? 's' : ''})`;
                 
-                document.getElementById('textoFalla').innerHTML = highlightText(resultado.falla || 'No se especifica', busqueda);
-                document.getElementById('textoNormalidad').innerHTML = highlightText(resultado.normalidad || 'No se especifica', busqueda);
-                document.getElementById('textoIntermitencia').innerHTML = highlightText(resultado.intermitencia || 'No se especifica', busqueda);
                 
-        
+                resultados.forEach((servicio, index) => {
+                    const resultadoItem = document.createElement('div');
+                    resultadoItem.className = 'resultado-item';
+                    
+                    resultadoItem.innerHTML = `
+                        <div class="servicio-title">
+                            <span class="mr-2">${index + 1}.</span>
+                            ${highlightText(servicio.servicio, busqueda)}
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                            <div class="estado-card estado-falla">
+                                <h3 class="font-extrabold text-xl text-red-700 flex items-center mb-2">
+                                    <span class="mr-2">🔴</span> Falla
+                                </h3>
+                                <p class="text-gray-700 whitespace-pre-wrap">${highlightText(servicio.falla || 'No se especifica', busqueda)}</p>
+                            </div>
+                            <div class="estado-card estado-normalidad">
+                                <h3 class="font-extrabold text-xl text-green-700 flex items-center mb-2">
+                                    <span class="mr-2">🟢</span> Normalidad
+                                </h3>
+                                <p class="text-gray-700 whitespace-pre-wrap">${highlightText(servicio.normalidad || 'No se especifica', busqueda)}</p>
+                            </div>
+                            <div class="estado-card estado-intermitencia">
+                                <h3 class="font-extrabold text-xl text-yellow-700 flex items-center mb-2">
+                                    <span class="mr-2">🟡</span> Intermitencia
+                                </h3>
+                                <p class="text-gray-700 whitespace-pre-wrap">${highlightText(servicio.intermitencia || 'No se especifica', busqueda)}</p>
+                            </div>
+                        </div>
+                    `;
+                    
+                    $resultadosContainer.appendChild(resultadoItem);
+                });
+                
                 $resultadoSection.classList.remove('hidden');
-                $buscarInput.focus(); 
+                $buscarInput.focus();
+                
+                
+                $resultadoSection.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
             } else {
-              
                 $noEncontrado.classList.remove('hidden');
             }
         }
 
-      
         function limpiar() {
             $buscarInput.value = '';
             $resultadoSection.classList.add('hidden');
             $noEncontrado.classList.add('hidden');
+            $resultadosContainer.innerHTML = '';
             $buscarInput.focus();
         }
 
-       
         function crearResumen(texto) {
             if (!texto || texto.toLowerCase() === 'no aplica') {
                 return 'N/A';
             }
             if (texto.length > MAX_RESUMEN_LENGTH) {
-              
                 return texto.substring(0, MAX_RESUMEN_LENGTH).trim() + '...';
             }
             return texto;
         }
 
-        
         function cargarTabla() {
             $tablaServiciosBody.innerHTML = '';
             
@@ -231,7 +255,8 @@
                 fila.classList.add('hover:bg-gray-50');
                 
                 fila.innerHTML = `
-                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-blue-700 sticky left-0 bg-white">${serv.servicio}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-blue-700 sticky left-0 bg-white cursor-pointer hover:text-blue-900 hover:underline" 
+                        onclick="buscarServicioDesdeTabla('${serv.servicio}')">${serv.servicio}</td>
                     <td class="px-6 py-4 text-sm text-red-600">${crearResumen(serv.falla)}</td>
                     <td class="px-6 py-4 text-sm text-green-600">${crearResumen(serv.normalidad)}</td>
                     <td class="px-6 py-4 text-sm text-yellow-600">${crearResumen(serv.intermitencia)}</td>
@@ -241,14 +266,27 @@
         }
 
         
+        function buscarServicioDesdeTabla(nombreServicio) {
+            $buscarInput.value = nombreServicio;
+            buscar();
+        }
+
         document.addEventListener('DOMContentLoaded', () => {
             cargarTabla();
-            $buscarInput.focus(); 
+            $buscarInput.focus();
             
-           
             $buscarInput.addEventListener('keypress', (e) => {
                 if (e.key === 'Enter') {
                     buscar();
+                }
+            });
+            
+            
+            document.addEventListener('keydown', (e) => {
+                if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
+                    e.preventDefault();
+                    $buscarInput.focus();
+                    $buscarInput.select();
                 }
             });
         });
